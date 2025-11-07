@@ -49,34 +49,31 @@ Provide feedback in JSON format:
 Be encouraging but honest. Focus on actionable improvements.`,
 
   // Career Matching
-  careerMatch: (profile: any) => `
-Based on this profile, recommend the best career paths:
-
-Profile:
-- Education: ${profile.education || 'Not specified'}
-- Skills: ${profile.skills || 'Not specified'}
-- Interests: ${profile.interests?.join(', ') || 'Not specified'}
-- Experience: ${profile.experience || 'Not specified'}
-- Goals: ${profile.goals || 'Not specified'}
-
-Provide recommendations in JSON format:
+  careerMatch: (profile: any) => `For profile: Education: ${profile.education || 'none'}, Skills: ${profile.skills || 'none'}, Interests: ${profile.interests?.join(', ') || 'none'}, suggest 3 career matches in JSON:
 {
   "topCareers": [
     {
-      "title": "<career title>",
-      "matchScore": <number 0-100>,
-      "reasoning": "<why this is a good fit>",
-      "skillGaps": [<array of skills to develop>],
-      "nextSteps": [<array of 3-4 actionable steps>],
-      "salaryRange": "<estimated range>",
-      "growthPotential": "<high/medium/low>"
+      "title": "Software Engineer",
+      "matchScore": 90,
+      "reasoning": "Strong fit based on technical skills",
+      "skillGaps": ["Cloud", "DevOps"],
+      "nextSteps": ["Learn AWS", "Build portfolio"],
+      "salaryRange": "$80-120k",
+      "growthPotential": "high"
     }
   ],
-  "learningPath": [<array of 4-6 courses/certifications to pursue>],
-  "timeline": "<realistic timeline to career transition>"
+  "learningPath": ["Course 1", "Course 2", "Course 3"],
+  "timeline": "6-12 months"
 }
 
-Recommend 3-5 careers. Be realistic and specific.`,
+Requirements:
+- Exactly 3 careers
+- Keep reasoning under 50 chars
+- 2-3 skill gaps max
+- 2-3 next steps max
+- 3-4 learning path items
+
+Return ONLY valid JSON.`,
 
   // Course Recommendations
   courseRecommendations: (userProfile: any, careerGoal: string) => `
@@ -158,36 +155,32 @@ export const getCareerRecommendationsPrompt = (
   careerTitle: string,
   userSkills?: string[],
   userInterests?: string[]
-) => `
-Provide personalized career development recommendations for someone interested in becoming a ${careerTitle}.
+) => `Career: ${careerTitle}${userSkills && userSkills.length > 0 ? `, Skills: ${userSkills.slice(0, 5).join(', ')}` : ''}
 
-${userSkills && userSkills.length > 0 ? `Current Skills: ${userSkills.join(', ')}` : ''}
-${userInterests && userInterests.length > 0 ? `Interests: ${userInterests.join(', ')}` : ''}
+Provide brief recommendations with clear headers:
 
-Please provide:
+LEARNING PATHS
+- Item 1 (course/cert, max 60 chars)
+- Item 2
+- Item 3
 
-1. LEARNING PATHS (3-5 items):
-   - Specific courses, certifications, or educational paths
-   - Focus on practical, actionable learning opportunities
+SKILL PRIORITIES
+- Skill 1: Brief reason (max 40 chars)
+- Skill 2: Brief reason
+- Skill 3: Brief reason
 
-2. SKILL PRIORITIES (3-4 items):
-   Format each as "Skill Name: Why it's important"
-   - Prioritize skills most valuable for this career
-   - Explain the business value of each skill
+NEXT STEPS
+- Action 1 (specific, max 50 chars)
+- Action 2
+- Action 3
 
-3. NEXT STEPS (3-5 items):
-   - Immediate actions they can take this week
-   - Be specific and actionable
+SIMILAR ROLES
+- Role 1
+- Role 2
+- Role 3
 
-4. SIMILAR ROLES (3-4 items):
-   - Related careers to consider
-   - Alternative paths with transferable skills
+INDUSTRY INSIGHTS
+1-2 sentences about market demand and outlook.
 
-5. INDUSTRY INSIGHTS:
-   - 2-3 sentences about current market trends
-   - Hiring outlook and demand for this role
-
-Format your response with clear section headers. Use bullet points (-) for lists.
-Be encouraging, specific, and practical.
-`
+Keep all items concise.`
 

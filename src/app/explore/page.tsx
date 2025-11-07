@@ -11,7 +11,7 @@ import {
   AccordionItem, 
   AccordionTrigger 
 } from '@/components/ui/accordion'
-import { ChevronRight, CheckCircle, Plus, Sparkles, BookOpen, TrendingUp, Users } from 'lucide-react'
+import { ChevronRight, CheckCircle, Plus, Sparkles, BookOpen, TrendingUp, Users, Lightbulb, Briefcase } from 'lucide-react'
 
 const skills = [
   { name: 'Product Strategy', owned: true },
@@ -35,6 +35,10 @@ export default function ExplorePage() {
   const user = useAppSelector((state: any) => state.user)
   const [aiRecommendations, setAiRecommendations] = useState<any>(null)
   const [loadingAI, setLoadingAI] = useState(false)
+  
+  // Get personalized info
+  const firstName = user.name?.split(' ')[0] || 'there'
+  const careerTitle = user.role ? user.role.replace('Aspiring ', '') : 'Product Manager'
 
   const getAIRecommendations = async () => {
     setLoadingAI(true)
@@ -42,7 +46,6 @@ export default function ExplorePage() {
       const ownedSkills = skills.filter(s => s.owned).map(s => s.name)
       
       // Use personalized data from user profile
-      const careerTitle = user.role ? user.role.replace('Aspiring ', '') : 'Product Manager'
       const userInterests = user.interests && user.interests.length > 0 
         ? user.interests 
         : ['Technology', 'Strategy', 'Leadership']
@@ -72,9 +75,6 @@ export default function ExplorePage() {
     getAIRecommendations()
   }, [])
 
-  // Dynamic career title based on user's role
-  const careerTitle = user.role ? user.role.replace('Aspiring ', '') : 'Product Manager'
-  
   return (
     <main className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 animate-fade-in">
       <div className="flex flex-col gap-8">
@@ -84,19 +84,27 @@ export default function ExplorePage() {
             Dashboard
           </Link>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          <span className="text-foreground font-medium">{careerTitle}</span>
+          <span className="text-foreground font-medium">Explore Careers</span>
         </nav>
 
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="flex flex-col gap-3">
             <h1 className="text-4xl font-black leading-tight tracking-tight">
-              {careerTitle}
+              Career Paths for {firstName} 🎯
             </h1>
             <p className="text-base text-muted-foreground max-w-2xl">
-              Product Managers guide a product's success and lead the cross-functional team that improves it. 
-              It is a key organizational role that sets the strategy, roadmap, and feature definition for a product or product line.
+              {user.major 
+                ? `Based on your ${user.major} background and interest in ${user.interests?.[0] || 'your chosen field'}`
+                : 'Explore career paths tailored to your profile'}
             </p>
+            {user.role && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                  Current Goal: {user.role}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex gap-2 shrink-0">
             <Button
@@ -104,19 +112,60 @@ export default function ExplorePage() {
               size="sm"
               onClick={getAIRecommendations}
               disabled={loadingAI}
+              className="hover:bg-primary hover:text-primary-foreground"
             >
               {loadingAI ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                <>
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-2"></div>
+                  Generating...
+                </>
               ) : (
-                <Sparkles className="h-4 w-4" />
+                <>
+                  <Sparkles className="h-3 w-3 mr-2" />
+                  AI Recommendations
+                </>
               )}
-            </Button>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add to My Plan
             </Button>
           </div>
         </div>
+        
+        {/* User Profile Context */}
+        {(user.skills || user.interests) && (
+          <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-purple-500/5 border border-primary/10">
+            <div className="flex flex-wrap gap-6">
+              {user.skills && user.skills.length > 0 && (
+                <div className="flex-1 min-w-[200px]">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
+                    <Lightbulb className="h-3 w-3" />
+                    Your Current Skills:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {user.skills.slice(0, 8).map((skill: string, idx: number) => (
+                      <span key={idx} className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                        {skill}
+                      </span>
+                    ))}
+                    {user.skills.length > 8 && (
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+                        +{user.skills.length - 8} more
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {user.experience && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Experience:</p>
+                  <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-400 font-medium capitalize">
+                    <Briefcase className="h-3 w-3" />
+                    {user.experience}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* AI Recommendations */}
         {aiRecommendations && (

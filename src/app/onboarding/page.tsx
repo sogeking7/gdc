@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppDispatch } from '@/lib/hooks'
 import { completeOnboarding, updateProfile } from '@/lib/features/userSlice'
@@ -10,36 +10,112 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ArrowRight, ArrowLeft, CheckCircle, Briefcase } from 'lucide-react'
+import { ArrowRight, ArrowLeft, CheckCircle, Briefcase, Sparkles, Plus, X, Loader2 } from 'lucide-react'
 
-const careerInterests = [
-  { id: 'technology', label: 'Technology & Software' },
-  { id: 'business', label: 'Business & Management' },
-  { id: 'design', label: 'Design & Creative' },
-  { id: 'data', label: 'Data & Analytics' },
-  { id: 'marketing', label: 'Marketing & Sales' },
-  { id: 'healthcare', label: 'Healthcare' },
-]
+interface CareerInterest {
+  id: string
+  label: string
+  description?: string
+  relevance?: number
+}
+
+interface Skill {
+  id: string
+  name: string
+  category: string
+  relevance: number
+  description: string
+  difficulty: string
+}
 
 export default function OnboardingPage() {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState({
+    name: '',
+    email: '',
     university: '',
     major: '',
     graduationYear: '',
-    interests: [] as string[],
-    experience: '',
-    skills: '',
-    goals: '',
+    gpa: '',
+    selectedSkills: [] as string[],
+    customSkills: [] as string[],
   })
 
-  const progress = (currentStep / 3) * 100
-  const stepTitles = ['Academic Background', 'Career Interests', 'Skills & Experience']
+  // AI-powered suggestions
+  const [careerInterests, setCareerInterests] = useState<CareerInterest[]>([])
+  const [suggestedSkills, setSuggestedSkills] = useState<Skill[]>([])
+  const [prioritySkills, setPrioritySkills] = useState<string[]>([])
+  const [isLoadingInterests, setIsLoadingInterests] = useState(false)
+  const [isLoadingSkills, setIsLoadingSkills] = useState(false)
+  const [showOtherInterest, setShowOtherInterest] = useState(false)
+  const [customSkillInput, setCustomSkillInput] = useState('')
 
-  const handleNext = () => {
-    if (currentStep < 3) {
+  const progress = (currentStep / 2) * 100
+  const stepTitles = ['Academic Background', 'Key Skills']
+
+  // Fetch AI-suggested career interests when major is entered
+  const fetchCareerInterests = async () => {
+    if (!formData.major) return
+
+    setIsLoadingInterests(true)
+    try {
+      const response = await fetch('/api/ai/career-interests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          major: formData.major,
+          university: formData.university,
+          graduationYear: formData.graduationYear,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setCareerInterests(data.interests || [])
+      }
+    } catch (error) {
+      console.error('Error fetching career interests:', error)
+    } finally {
+      setIsLoadingInterests(false)
+    }
+  }
+
+  // Fetch AI-suggested skills based on major
+  const fetchSkillSuggestions = async () => {
+    if (!formData.major) return
+
+    setIsLoadingSkills(true)
+    try {
+      const response = await fetch('/api/ai/skill-suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          major: formData.major,
+          university: formData.university,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setSuggestedSkills(data.skills || [])
+        setPrioritySkills(data.prioritySkills || [])
+      }
+    } catch (error) {
+      console.error('Error fetching skill suggestions:', error)
+    } finally {
+      setIsLoadingSkills(false)
+    }
+  }
+
+  const handleNext = async () => {
+    if (currentStep === 1) {
+      // Moving from step 1 to 2 - fetch skill suggestions based on major
+      await fetchSkillSuggestions()
+    }
+    
+    if (currentStep < 2) {
       setCurrentStep(currentStep + 1)
     }
   }
@@ -59,64 +135,86 @@ export default function OnboardingPage() {
     }))
   }
 
-  const handleComplete = async () => {
-    // Save user profile data to Redux
-    const interestLabels = careerInterests
-      .filter(interest => formData.interests.includes(interest.id))
-      .map(interest => interest.label)
+  const handleSkillToggle = (skillId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      selectedSkills: prev.selectedSkills.includes(skillId)
+        ? prev.selectedSkills.filter(id => id !== skillId)
+        : [...prev.selectedSkills, skillId]
+    }))
+  }
 
-    // Determine role based on interests and goals
-    let role = 'Career Explorer'
-    if (formData.goals.toLowerCase().includes('product')) {
-      role = 'Aspiring Product Manager'
-    } else if (formData.goals.toLowerCase().includes('design') || formData.interests.includes('design')) {
-      role = 'Aspiring UX Designer'
-    } else if (formData.goals.toLowerCase().includes('data') || formData.interests.includes('data')) {
-      role = 'Aspiring Data Analyst'
-    } else if (formData.goals.toLowerCase().includes('software') || formData.interests.includes('technology')) {
-      role = 'Aspiring Software Engineer'
-    } else if (interestLabels.length > 0) {
-      role = `Aspiring ${interestLabels[0]} Professional`
+  const handleAddCustomSkill = () => {
+    if (customSkillInput.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        customSkills: [...prev.customSkills, customSkillInput.trim()]
+      }))
+      setCustomSkillInput('')
     }
+  }
 
-    // Update user profile with onboarding data
+  const handleRemoveCustomSkill = (skill: string) => {
+    setFormData(prev => ({
+      ...prev,
+      customSkills: prev.customSkills.filter(s => s !== skill)
+    }))
+  }
+
+  const handleAddCustomInterest = () => {
+    if (formData.customInterest.trim()) {
+      const customId = `custom-${formData.customInterest.toLowerCase().replace(/\s+/g, '-')}`
+      setCareerInterests(prev => [...prev, {
+        id: customId,
+        label: formData.customInterest.trim(),
+        description: 'Custom interest',
+      }])
+      setFormData(prev => ({
+        ...prev,
+        interests: [...prev.interests, customId],
+        customInterest: ''
+      }))
+      setShowOtherInterest(false)
+    }
+  }
+
+  const handleComplete = async () => {
+    // Compile all skills (AI-suggested + custom)
+    const selectedSkillObjects = suggestedSkills.filter(skill =>
+      formData.selectedSkills.includes(skill.id)
+    )
+    const allSkills = [
+      ...selectedSkillObjects.map(s => s.name),
+      ...formData.customSkills
+    ]
+
+    // Update user profile - no career goals, student exploring options
     dispatch(updateProfile({
-      role: role,
-      // Store additional metadata for personalization
+      name: formData.name,
+      email: formData.email,
+      role: 'Career Explorer', // Default until they choose a track
       education: `${formData.major} from ${formData.university}`,
+      university: formData.university,
+      major: formData.major,
       graduationYear: formData.graduationYear,
-      interests: interestLabels,
-      experience: formData.experience,
-      skillsText: formData.skills,
-      careerGoals: formData.goals,
-      profileCompletion: 85, // Higher completion after onboarding
+      gpa: formData.gpa,
+      skills: allSkills,
+      skillsText: allSkills.join(', '),
+      profileCompletion: 80, // Complete onboarding, but no career chosen yet
     } as any))
 
-    // Get AI career recommendations
-    try {
-      const profile = {
-        education: `${formData.major} from ${formData.university}`,
-        skills: formData.skills,
-        interests: formData.interests,
-        experience: formData.experience,
-        goals: formData.goals
-      }
-
-      // Call AI for career recommendations (non-blocking)
-      fetch('/api/ai/career-match', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile })
-      }).then(async (response) => {
-        if (response.ok) {
-          const data = await response.json()
-          // Store recommendations in localStorage for dashboard
-          localStorage.setItem('aiCareerRecommendations', JSON.stringify(data.recommendations))
-        }
-      }).catch(err => console.error('Career match error:', err))
-    } catch (error) {
-      console.error('Error:', error)
+    // Store detailed onboarding data in localStorage
+    const onboardingData = {
+      name: formData.name,
+      email: formData.email,
+      university: formData.university,
+      major: formData.major,
+      graduationYear: formData.graduationYear,
+      gpa: formData.gpa,
+      skills: allSkills,
+      timestamp: new Date().toISOString(),
     }
+    localStorage.setItem('onboardingData', JSON.stringify(onboardingData))
 
     dispatch(completeOnboarding())
     router.push('/')
@@ -155,9 +253,10 @@ export default function OnboardingPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-muted-foreground">
-                  Step {currentStep} of 3
+                  Step {currentStep} of 2
                 </p>
-                <p className="text-sm font-semibold text-primary">
+                <p className="text-sm font-semibold text-primary flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
                   {stepTitles[currentStep - 1]}
                 </p>
               </div>
@@ -165,10 +264,17 @@ export default function OnboardingPage() {
             </div>
 
             <div className="pt-6 text-center">
-              <CardTitle className="text-3xl sm:text-4xl">Craft Your Future.</CardTitle>
-              <CardDescription className="mt-2">
-                Tell us a bit about yourself to get a personalized career roadmap in minutes.
+              <CardTitle className="text-3xl sm:text-4xl bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
+                Craft Your Future.
+              </CardTitle>
+              <CardDescription className="mt-2 text-base">
+                Tell us about yourself and we'll help you discover the perfect career path.
               </CardDescription>
+              {currentStep > 1 && formData.name && (
+                <p className="mt-3 text-sm text-primary font-medium">
+                  Welcome, {formData.name.split(' ')[0]}! 👋
+                </p>
+              )}
             </div>
           </CardHeader>
 
@@ -177,25 +283,48 @@ export default function OnboardingPage() {
             {currentStep === 1 && (
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="university">University</Label>
+                  <Label htmlFor="name">Full Name *</Label>
+                  <Input
+                    id="name"
+                    placeholder="e.g., Alex Johnson"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="e.g., alex@university.edu"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="university">University *</Label>
                   <Input
                     id="university"
-                    placeholder="e.g., University of Technology"
+                    placeholder="e.g., University of California, Berkeley"
                     value={formData.university}
                     onChange={(e) => setFormData({ ...formData, university: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="major">Major</Label>
+                  <Label htmlFor="major">Major / Field of Study *</Label>
                   <Input
                     id="major"
                     placeholder="e.g., Computer Science"
                     value={formData.major}
                     onChange={(e) => setFormData({ ...formData, major: e.target.value })}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    💡 We'll use this to suggest relevant career paths
+                  </p>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="graduationYear">Expected Graduation Year</Label>
+                    <Label htmlFor="graduationYear">Graduation Year *</Label>
                   <Input
                     id="graduationYear"
                     type="number"
@@ -203,108 +332,197 @@ export default function OnboardingPage() {
                     value={formData.graduationYear}
                     onChange={(e) => setFormData({ ...formData, graduationYear: e.target.value })}
                   />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gpa">GPA (Optional)</Label>
+                    <Input
+                      id="gpa"
+                      placeholder="e.g., 3.5"
+                      value={formData.gpa}
+                      onChange={(e) => setFormData({ ...formData, gpa: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center justify-end pt-4">
-                  <Button onClick={handleNext}>
+                  <Button 
+                    onClick={handleNext}
+                    disabled={!formData.name || !formData.email || !formData.university || !formData.major || !formData.graduationYear}
+                  >
+                    {isLoadingInterests ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating suggestions...
+                      </>
+                    ) : (
+                      <>
                     Next
                     <ArrowRight className="h-4 w-4 ml-2" />
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
             )}
 
-            {/* Step 2: Career Interests */}
+            {/* Step 2: Key Skills */}
             {currentStep === 2 && (
               <div className="space-y-6">
                 <div>
-                  <Label className="text-base">What are your career interests?</Label>
-                  <p className="text-sm text-muted-foreground mt-1">Select all that apply</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                    {careerInterests.map((interest) => (
-                      <label
-                        key={interest.id}
-                        className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-accent transition-colors"
-                      >
-                        <Checkbox
-                          checked={formData.interests.includes(interest.id)}
-                          onCheckedChange={() => handleInterestToggle(interest.id)}
-                        />
-                        <span className="text-sm">{interest.label}</span>
-                      </label>
-                    ))}
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-base">Select your key skills</Label>
+                    {suggestedSkills.length > 0 && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        AI-recommended
+                      </span>
+                    )}
                   </div>
-                </div>
-                <div className="flex items-center justify-between pt-4">
-                  <Button variant="outline" onClick={handleBack}>
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back
-                  </Button>
-                  <Button onClick={handleNext}>
-                    Next
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
-              </div>
-            )}
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Choose skills you have or want to develop
+                  </p>
+                  
+                  {isLoadingSkills ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-4 space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                        {/* Priority Skills */}
+                        {prioritySkills.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium text-primary flex items-center gap-1">
+                              <Sparkles className="h-3 w-3" />
+                              Priority Skills for Your Path
+                            </p>
+                            <div className="grid grid-cols-1 gap-2">
+                              {suggestedSkills
+                                .filter(skill => prioritySkills.includes(skill.id))
+                                .map((skill) => (
+                                  <label
+                                    key={skill.id}
+                                    className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer hover:bg-accent transition-colors ${
+                                      formData.selectedSkills.includes(skill.id) 
+                                        ? 'border-primary bg-primary/5' 
+                                        : 'border-primary/30'
+                                    }`}
+                                  >
+                                    <Checkbox
+                                      checked={formData.selectedSkills.includes(skill.id)}
+                                      onCheckedChange={() => handleSkillToggle(skill.id)}
+                                      className="mt-0.5"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium">{skill.name}</span>
+                                        <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                                          {skill.difficulty}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mt-1">{skill.description}</p>
+                                    </div>
+                                  </label>
+                                ))}
+                            </div>
+                          </div>
+                        )}
 
-            {/* Step 3: Skills & Experience */}
-            {currentStep === 3 && (
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="experience">Current Experience Level</Label>
-                  <select
-                    id="experience"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={formData.experience}
-                    onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
-                  >
-                    <option value="">Select your experience level</option>
-                    <option value="student">Student (No experience)</option>
-                    <option value="entry">Entry Level (0-2 years)</option>
-                    <option value="mid">Mid Level (3-5 years)</option>
-                    <option value="senior">Senior (5+ years)</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="skills">Key Skills</Label>
-                  <p className="text-sm text-muted-foreground">
-                    List your main skills (separated by commas)
-                  </p>
-                  <textarea
-                    id="skills"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-                    rows={3}
-                    placeholder="e.g., Python, JavaScript, Leadership, Communication"
-                    value={formData.skills}
-                    onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="goals">Career Goals</Label>
-                  <p className="text-sm text-muted-foreground">
-                    What do you want to achieve?
-                  </p>
-                  <textarea
-                    id="goals"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-                    rows={3}
-                    placeholder="e.g., Land a software engineering role at a tech company"
-                    value={formData.goals}
-                    onChange={(e) => setFormData({ ...formData, goals: e.target.value })}
-                  />
+                        {/* Other Skills by Category */}
+                        {['technical', 'professional', 'soft', 'tools'].map(category => {
+                          const categorySkills = suggestedSkills.filter(
+                            skill => skill.category === category && !prioritySkills.includes(skill.id)
+                          )
+                          if (categorySkills.length === 0) return null
+
+                          return (
+                            <div key={category} className="space-y-2">
+                              <p className="text-xs font-medium text-muted-foreground capitalize">
+                                {category} Skills
+                              </p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {categorySkills.map((skill) => (
+                                  <label
+                                    key={skill.id}
+                                    className={`flex items-start gap-2 p-2 rounded-lg border cursor-pointer hover:bg-accent transition-colors ${
+                                      formData.selectedSkills.includes(skill.id) ? 'border-primary bg-primary/5' : ''
+                                    }`}
+                                  >
+                                    <Checkbox
+                                      checked={formData.selectedSkills.includes(skill.id)}
+                                      onCheckedChange={() => handleSkillToggle(skill.id)}
+                                      className="mt-0.5"
+                                    />
+                                    <div className="flex-1">
+                                      <span className="text-xs font-medium">{skill.name}</span>
+                                    </div>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* Add Custom Skills */}
+                      <div className="mt-4 space-y-2">
+                        <Label className="text-sm">Add Custom Skills</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="e.g., Public Speaking"
+                            value={customSkillInput}
+                            onChange={(e) => setCustomSkillInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleAddCustomSkill()
+                              }
+                            }}
+                          />
+                          <Button 
+                            onClick={handleAddCustomSkill} 
+                            disabled={!customSkillInput.trim()}
+                            size="sm"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {formData.customSkills.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {formData.customSkills.map((skill) => (
+                              <span
+                                key={skill}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs"
+                              >
+                                {skill}
+                                <button
+                                  onClick={() => handleRemoveCustomSkill(skill)}
+                                  className="hover:text-primary/70"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="flex items-center justify-between pt-4">
                   <Button variant="outline" onClick={handleBack}>
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back
                   </Button>
-                  <Button onClick={handleComplete}>
-                    Get Started
+                  <Button 
+                    onClick={handleComplete}
+                    disabled={formData.selectedSkills.length === 0 && formData.customSkills.length === 0}
+                  >
+                    Complete Onboarding
                     <CheckCircle className="h-4 w-4 ml-2" />
                   </Button>
                 </div>
               </div>
             )}
+
           </CardContent>
         </Card>
       </div>

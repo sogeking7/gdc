@@ -23,11 +23,20 @@ export interface UserState {
   onboardingCompleted: boolean
   // Personalization fields from onboarding
   education?: string
+  university?: string
+  major?: string
   graduationYear?: string
+  gpa?: string
   interests?: string[]
+  skills?: string[]
   experience?: string
+  projects?: string
   skillsText?: string
   careerGoals?: string
+  // Career track fields
+  selectedCareer?: any
+  careerRoadmap?: any
+  careerMilestones?: any[]
 }
 
 const initialState: UserState = {

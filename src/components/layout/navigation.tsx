@@ -12,6 +12,7 @@ const navLinks = [
   { href: '/explore', label: 'Explore Careers' },
   { href: '/resume', label: 'Resume Builder' },
   { href: '/interview', label: 'Mock Interview' },
+  { href: '/profile', label: 'Profile' },
 ]
 
 export function Navigation() {
@@ -44,7 +45,7 @@ export function Navigation() {
           ))}
         </nav>
       </div>
-      <div className="flex flex-1 justify-end gap-3 sm:gap-4">
+      <div className="flex flex-1 justify-end gap-3 sm:gap-4 items-center">
         <label className="hidden sm:flex flex-col min-w-40 !h-10 max-w-64">
           <div className="flex w-full flex-1 items-stretch rounded-lg h-full">
             <div className="text-muted-foreground flex border-none bg-muted items-center justify-center pl-3 rounded-l-lg border-r-0">
@@ -56,16 +57,35 @@ export function Navigation() {
             />
           </div>
         </label>
-        <button className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-muted text-foreground gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
+        
+        {/* Profile Completion Badge */}
+        {user.profileCompletion >= 90 && (
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
+            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+            <span className="text-xs font-medium text-green-700 dark:text-green-400">
+              {user.profileCompletion}% Complete
+            </span>
+          </div>
+        )}
+        
+        <button className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-muted text-foreground gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5 hover:bg-muted/80 transition-colors">
           <Bell className="h-4 w-4" />
         </button>
-        <div className="relative h-10 w-10 rounded-full overflow-hidden">
-          <Image
-            src={user.avatar}
-            alt="User avatar"
-            fill
-            className="object-cover"
-          />
+        
+        {/* User Profile with Name and Role */}
+        <div className="flex items-center gap-3">
+          <div className="hidden lg:flex flex-col items-end">
+            <p className="text-sm font-medium leading-tight">{user.name?.split(' ')[0] || user.name}</p>
+            <p className="text-xs text-muted-foreground leading-tight">{user.role}</p>
+          </div>
+          <div className="relative h-10 w-10 rounded-full overflow-hidden ring-2 ring-primary/20">
+            <Image
+              src={user.avatar}
+              alt={user.name}
+              fill
+              className="object-cover"
+            />
+          </div>
         </div>
       </div>
     </header>
