@@ -22,8 +22,11 @@ const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/explore", label: "Explore Careers" },
   { href: "/resume", label: "Resume Builder" },
-  { href: "/interview", label: "Mock Interview" },
-  // { href: "/profile", label: "Profile" },
+  {
+    href: "https://ai-technical-interviewer-201743667943.us-west1.run.app",
+    label: "Mock Interview",
+  },
+  { href: "/onboarding", label: "Onboarding" },
 ];
 
 function useUserSession(initialUser: User | null) {

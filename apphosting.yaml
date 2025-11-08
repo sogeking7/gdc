@@ -29,7 +29,16 @@ env:
 
   - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
     value: G-BG9QKRW7ZB
-  
+
+  - variable: NEXT_PUBLIC_GOOGLE_GENAI_API_KEY
+    value: AIzaSyCZX_geW-HCkrnX7dRporYkTcfiF1NRyRg
+
+  - variable: NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY
+    value: AIzaSyBHTTLGY71XwvnzlC1Q0sMceoureXb4kGo
+
+  - variable: NEXT_PUBLIC_GOOGLE_SEARCH_CX
+    value: 0391d0bb29ab042d2
+
   # Configure environment variables.
   # See https://firebase.google.com/docs/app-hosting/configure#user-defined-environment
   # - variable: MESSAGE

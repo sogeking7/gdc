@@ -517,7 +517,7 @@ export const DashboardPage = () => {
                   </Card>
                 </Link>
 
-                <Link href="/interview">
+                <Link href="https://ai-technical-interviewer-201743667943.us-west1.run.app">
                   <Card className="cursor-pointer hover:scale-105 hover:shadow-xl transition-all bg-gradient-to-br from-purple-500 to-pink-500 text-primary-foreground border-0 h-full">
                     <CardContent className="p-6 space-y-2">
                       <Mic className="h-10 w-10" />

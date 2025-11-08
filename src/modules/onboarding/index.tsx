@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAppDispatch } from "@/lib/hooks";
+import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import { completeOnboarding, updateProfile } from "@/lib/features/userSlice";
+import { auth } from "@/lib/firebase/clientApp";
+import { onAuthStateChanged } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,6 +48,7 @@ interface Skill {
 export const OnboardingPage = () => {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.user);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     name: "",
@@ -71,6 +74,31 @@ export const OnboardingPage = () => {
 
   const progress = (currentStep / 2) * 100;
   const stepTitles = ["Academic Background", "Key Skills"];
+
+  // Prefill user name and email from Redux store or Firebase Auth
+  useEffect(() => {
+    // First try to get from Redux store
+    if (user.name && user.email) {
+      setFormData((prev) => ({
+        ...prev,
+        name: user.name || "",
+        email: user.email || "",
+      }));
+    }
+
+    // Also listen to Firebase Auth state changes
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setFormData((prev) => ({
+          ...prev,
+          name: prev.name || firebaseUser.displayName || "",
+          email: prev.email || firebaseUser.email || "",
+        }));
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user.name, user.email]);
 
   // Fetch AI-suggested career interests when major is entered
   const fetchCareerInterests = async () => {
@@ -608,4 +636,4 @@ export const OnboardingPage = () => {
       </div>
     </div>
   );
-}
+};

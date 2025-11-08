@@ -26,8 +26,28 @@ import {
   X,
   CheckCircle,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Define interfaces for multi-entry sections
+type EducationEntry = {
+  id: string;
+  university: string;
+  degree: string;
+  major: string;
+  graduationYear: string;
+  gpa: string;
+};
+
+type ExperienceEntry = {
+  id: string;
+  jobTitle: string;
+  company: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+};
 
 export const ResumePage = () => {
   const resume = useAppSelector((state) => state.resume);
@@ -37,14 +57,8 @@ export const ResumePage = () => {
   const [loadingAI, setLoadingAI] = useState(false);
   const [hasPreFilled, setHasPreFilled] = useState(false);
 
-  // Education fields (pre-filled from onboarding)
-  const [education, setEducation] = useState({
-    university: "",
-    degree: "Bachelor of Science",
-    major: "",
-    graduationYear: "",
-    gpa: "",
-  });
+  // Education fields (now an array)
+  const [educations, setEducations] = useState<EducationEntry[]>([]);
 
   // Skills (pre-populated from onboarding)
   const [skills, setSkills] = useState<string[]>([]);
@@ -54,8 +68,8 @@ export const ResumePage = () => {
   const [summary, setSummary] = useState("");
   const [generatingSummary, setGeneratingSummary] = useState(false);
 
-  // Experience
-  const [experiences, setExperiences] = useState<any[]>([]);
+  // Experience (now an array with a defined type)
+  const [experiences, setExperiences] = useState<ExperienceEntry[]>([]);
 
   // Certifications
   const [certifications, setCertifications] = useState<string[]>([]);
@@ -74,14 +88,17 @@ export const ResumePage = () => {
         })
       );
 
-      // Education
-      setEducation({
-        university: user.university || "",
-        degree: "Bachelor of Science",
-        major: user.major || "",
-        graduationYear: user.graduationYear || "",
-        gpa: user.gpa || "",
-      });
+      // Education (set as an array with one entry)
+      setEducations([
+        {
+          id: crypto.randomUUID(),
+          university: user.university || "",
+          degree: "Bachelor of Science",
+          major: user.major || "",
+          graduationYear: user.graduationYear || "",
+          gpa: user.gpa || "",
+        },
+      ]);
 
       // Skills
       const userSkills =
@@ -89,6 +106,9 @@ export const ResumePage = () => {
         user.skillsText?.split(",").map((s: string) => s.trim()) ||
         [];
       setSkills(userSkills.filter((s) => s));
+
+      // Note: Experiences are not pre-filled in the original logic
+      // Certifications are not pre-filled
 
       setHasPreFilled(true);
     }
@@ -108,6 +128,69 @@ export const ResumePage = () => {
     dispatch(selectTemplate(templateId));
   };
 
+  // --- Education Handlers ---
+  const handleAddEducation = () => {
+    setEducations([
+      ...educations,
+      {
+        id: crypto.randomUUID(),
+        university: "",
+        degree: "",
+        major: "",
+        graduationYear: "",
+        gpa: "",
+      },
+    ]);
+  };
+
+  const handleUpdateEducation = (
+    id: string,
+    field: keyof EducationEntry,
+    value: string
+  ) => {
+    setEducations(
+      educations.map((edu) =>
+        edu.id === id ? { ...edu, [field]: value } : edu
+      )
+    );
+  };
+
+  const handleRemoveEducation = (id: string) => {
+    setEducations(educations.filter((edu) => edu.id !== id));
+  };
+
+  // --- Experience Handlers ---
+  const handleAddExperience = () => {
+    setExperiences([
+      ...experiences,
+      {
+        id: crypto.randomUUID(),
+        jobTitle: "",
+        company: "",
+        startDate: "",
+        endDate: "",
+        description: "",
+      },
+    ]);
+  };
+
+  const handleUpdateExperience = (
+    id: string,
+    field: keyof ExperienceEntry,
+    value: string
+  ) => {
+    setExperiences(
+      experiences.map((exp) =>
+        exp.id === id ? { ...exp, [field]: value } : exp
+      )
+    );
+  };
+
+  const handleRemoveExperience = (id: string) => {
+    setExperiences(experiences.filter((exp) => exp.id !== id));
+  };
+
+  // --- Skill Handlers ---
   const handleAddSkill = () => {
     if (newSkill.trim() && !skills.includes(newSkill.trim())) {
       setSkills([...skills, newSkill.trim()]);
@@ -119,6 +202,22 @@ export const ResumePage = () => {
     setSkills(skills.filter((s) => s !== skillToRemove));
   };
 
+  // --- Certification Handlers ---
+  const handleAddCertification = () => {
+    if (
+      newCertification.trim() &&
+      !certifications.includes(newCertification.trim())
+    ) {
+      setCertifications([...certifications, newCertification.trim()]);
+      setNewCertification("");
+    }
+  };
+
+  const handleRemoveCertification = (certToRemove: string) => {
+    setCertifications(certifications.filter((c) => c !== certToRemove));
+  };
+
+  // --- AI Summary ---
   const generateAISummary = async () => {
     if (!user.major && !user.role) {
       setSummary(
@@ -133,7 +232,11 @@ export const ResumePage = () => {
 - Major: ${user.major || "general studies"}
 - Target Role: ${user.role || "entry-level position"}
 - Key Skills: ${skills.slice(0, 5).join(", ") || "various skills"}
-- Experience: ${user.experience || "student"}
+- Experience: ${
+        experiences.length > 0
+          ? experiences.map((e) => e.jobTitle).join(", ")
+          : user.experience || "student"
+      }
 - Goals: ${user.careerGoals || "career growth"}
 
 Return ONLY the summary text, no JSON, no quotes, just the summary.`;
@@ -185,9 +288,30 @@ Return ONLY the summary text, no JSON, no quotes, just the summary.`;
     }
   };
 
+  // --- AI Feedback ---
   const handleGetAIFeedback = async () => {
     setLoadingAI(true);
     setAiFeedback(null);
+
+    // Build education string
+    const educationString = educations
+      .map(
+        (edu) =>
+          `${edu.degree} in ${edu.major} from ${edu.university} (${
+            edu.graduationYear
+          })${edu.gpa ? `, GPA: ${edu.gpa}` : ""}`
+      )
+      .join("\n");
+
+    // Build experience string
+    const experienceString = experiences
+      .map(
+        (exp) =>
+          `${exp.jobTitle} at ${exp.company} (${exp.startDate} - ${
+            exp.endDate || "Present"
+          })\n${exp.description}`
+      )
+      .join("\n\n");
 
     try {
       const resumeContent = `
@@ -200,19 +324,18 @@ Professional Summary:
 ${summary || "Not provided"}
 
 Education:
-${education.degree} in ${education.major}
-${education.university}
-${
-  education.graduationYear
-    ? `Expected Graduation: ${education.graduationYear}`
-    : ""
-}
-${education.gpa ? `GPA: ${education.gpa}` : ""}
+${educationString || "Not provided"}
+
+Work Experience:
+${experienceString || "Not provided"}
 
 Skills:
 ${skills.join(", ") || "Not provided"}
 
-Projects/Experience:
+Certifications:
+${certifications.join(", ") || "Not provided"}
+
+Projects:
 ${user.projects || "Not provided"}
 
 Target Role: ${user.role || "Not specified"}
@@ -273,7 +396,7 @@ Career Goals: ${user.careerGoals || "Not specified"}
                 ? `Create your professional ${user.major} resume`
                 : "Complete the sections below to create your professional resume"}
             </p>
-            {user.name && (
+            {user.name && hasPreFilled && (
               <div className="mt-3 p-2 bg-green-500/10 rounded-lg border border-green-500/20">
                 <p className="text-xs text-green-700 flex items-center gap-2">
                   <Sparkles className="h-3 w-3" />
@@ -292,7 +415,7 @@ Career Goals: ${user.careerGoals || "Not specified"}
             {/* Contact Information Section */}
             <AccordionItem
               value="contact"
-              className="bg-muted border rounded-xl px-4"
+              className="bg-white border rounded-xl px-4"
             >
               <AccordionTrigger className="hover:no-underline py-4">
                 <div className="flex items-center gap-3">
@@ -445,7 +568,7 @@ Career Goals: ${user.careerGoals || "Not specified"}
             {/* Professional Summary Section */}
             <AccordionItem
               value="summary"
-              className="bg-muted border rounded-xl px-4"
+              className="bg-white border rounded-xl px-4"
             >
               <AccordionTrigger className="hover:no-underline py-4">
                 <div className="flex items-center gap-3">
@@ -488,10 +611,10 @@ Career Goals: ${user.careerGoals || "Not specified"}
               </AccordionContent>
             </AccordionItem>
 
-            {/* Education Section */}
+            {/* Education Section (Refactored for multiple) */}
             <AccordionItem
               value="education"
-              className="bg-muted border rounded-xl px-4"
+              className="bg-white border rounded-xl px-4"
             >
               <AccordionTrigger className="hover:no-underline py-4">
                 <div className="flex items-center gap-3">
@@ -499,73 +622,110 @@ Career Goals: ${user.careerGoals || "Not specified"}
                   <p className="text-base font-semibold">Education</p>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="space-y-4 pb-4">
-                <div className="space-y-2">
-                  <Label htmlFor="university">University/Institution</Label>
-                  <Input
-                    id="university"
-                    placeholder="e.g., Stanford University"
-                    value={education.university}
-                    onChange={(e) =>
-                      setEducation({ ...education, university: e.target.value })
-                    }
-                  />
-                </div>
+              <AccordionContent className="space-y-6 pb-4">
+                {educations.map((edu, index) => (
+                  <div
+                    key={edu.id}
+                    className="space-y-4 p-4 border rounded-lg relative"
+                  >
+                    {educations.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleRemoveEducation(edu.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="degree">Degree</Label>
-                    <Input
-                      id="degree"
-                      placeholder="e.g., Bachelor of Science"
-                      value={education.degree}
-                      onChange={(e) =>
-                        setEducation({ ...education, degree: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="major">Major/Field of Study</Label>
-                    <Input
-                      id="major"
-                      placeholder="e.g., Computer Science"
-                      value={education.major}
-                      onChange={(e) =>
-                        setEducation({ ...education, major: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`university-${edu.id}`}>
+                        University/Institution
+                      </Label>
+                      <Input
+                        id={`university-${edu.id}`}
+                        placeholder="e.g., Stanford University"
+                        value={edu.university}
+                        onChange={(e) =>
+                          handleUpdateEducation(
+                            edu.id,
+                            "university",
+                            e.target.value
+                          )
+                        }
+                      />
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="graduationYear">Graduation Year</Label>
-                    <Input
-                      id="graduationYear"
-                      placeholder="e.g., 2025"
-                      value={education.graduationYear}
-                      onChange={(e) =>
-                        setEducation({
-                          ...education,
-                          graduationYear: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="gpa">GPA (optional)</Label>
-                    <Input
-                      id="gpa"
-                      placeholder="e.g., 3.8"
-                      value={education.gpa}
-                      onChange={(e) =>
-                        setEducation({ ...education, gpa: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`degree-${edu.id}`}>Degree</Label>
+                        <Input
+                          id={`degree-${edu.id}`}
+                          placeholder="e.g., Bachelor of Science"
+                          value={edu.degree}
+                          onChange={(e) =>
+                            handleUpdateEducation(
+                              edu.id,
+                              "degree",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`major-${edu.id}`}>
+                          Major/Field of Study
+                        </Label>
+                        <Input
+                          id={`major-${edu.id}`}
+                          placeholder="e.g., Computer Science"
+                          value={edu.major}
+                          onChange={(e) =>
+                            handleUpdateEducation(
+                              edu.id,
+                              "major",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
 
-                {user.university && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`graduationYear-${edu.id}`}>
+                          Graduation Year
+                        </Label>
+                        <Input
+                          id={`graduationYear-${edu.id}`}
+                          placeholder="e.g., 2025"
+                          value={edu.graduationYear}
+                          onChange={(e) =>
+                            handleUpdateEducation(
+                              edu.id,
+                              "graduationYear",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`gpa-${edu.id}`}>GPA (optional)</Label>
+                        <Input
+                          id={`gpa-${edu.id}`}
+                          placeholder="e.g., 3.8"
+                          value={edu.gpa}
+                          onChange={(e) =>
+                            handleUpdateEducation(edu.id, "gpa", e.target.value)
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {user.university && hasPreFilled && (
                   <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20">
                     <p className="text-xs text-green-700 flex items-center gap-2">
                       <CheckCircle className="h-4 w-4" />
@@ -574,13 +734,22 @@ Career Goals: ${user.careerGoals || "Not specified"}
                     </p>
                   </div>
                 )}
+
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleAddEducation}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Another Education
+                </Button>
               </AccordionContent>
             </AccordionItem>
 
-            {/* Work Experience Section */}
+            {/* Work Experience Section (Refactored for multiple) */}
             <AccordionItem
               value="experience"
-              className="bg-muted border rounded-xl px-4"
+              className="bg-white border rounded-xl px-4"
             >
               <AccordionTrigger className="hover:no-underline py-4">
                 <div className="flex items-center gap-3">
@@ -590,67 +759,146 @@ Career Goals: ${user.careerGoals || "Not specified"}
                   </p>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="space-y-4 pb-4">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="jobTitle">Position Title</Label>
-                    <Input
-                      id="jobTitle"
-                      placeholder="e.g., Software Engineering Intern"
-                    />
-                  </div>
+              <AccordionContent className="space-y-6 pb-4">
+                {experiences.map((exp, index) => (
+                  <div
+                    key={exp.id}
+                    className="space-y-4 p-4 border rounded-lg relative"
+                  >
+                    {experiences.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleRemoveExperience(exp.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="company">Company/Organization</Label>
-                    <Input id="company" placeholder="e.g., Google" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="startDate">Start Date</Label>
-                      <Input id="startDate" type="month" />
+                      <Label htmlFor={`jobTitle-${exp.id}`}>
+                        Position Title
+                      </Label>
+                      <Input
+                        id={`jobTitle-${exp.id}`}
+                        placeholder="e.g., Software Engineering Intern"
+                        value={exp.jobTitle}
+                        onChange={(e) =>
+                          handleUpdateExperience(
+                            exp.id,
+                            "jobTitle",
+                            e.target.value
+                          )
+                        }
+                      />
                     </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="endDate">End Date</Label>
-                      <Input id="endDate" type="month" placeholder="Present" />
+                      <Label htmlFor={`company-${exp.id}`}>
+                        Company/Organization
+                      </Label>
+                      <Input
+                        id={`company-${exp.id}`}
+                        placeholder="e.g., Google"
+                        value={exp.company}
+                        onChange={(e) =>
+                          handleUpdateExperience(
+                            exp.id,
+                            "company",
+                            e.target.value
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`startDate-${exp.id}`}>
+                          Start Date
+                        </Label>
+                        <Input
+                          id={`startDate-${exp.id}`}
+                          type="month"
+                          value={exp.startDate}
+                          onChange={(e) =>
+                            handleUpdateExperience(
+                              exp.id,
+                              "startDate",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`endDate-${exp.id}`}>End Date</Label>
+                        <Input
+                          id={`endDate-${exp.id}`}
+                          type="month"
+                          placeholder="Present"
+                          value={exp.endDate}
+                          onChange={(e) =>
+                            handleUpdateExperience(
+                              exp.id,
+                              "endDate",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`description-${exp.id}`}>
+                        Description & Achievements
+                      </Label>
+                      <textarea
+                        id={`description-${exp.id}`}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                        rows={4}
+                        placeholder={
+                          "• Led development of new feature\n• Improved performance by 30%\n• Collaborated with cross-functional team"
+                        }
+                        value={exp.description}
+                        onChange={(e) =>
+                          handleUpdateExperience(
+                            exp.id,
+                            "description",
+                            e.target.value
+                          )
+                        }
+                      />
                     </div>
                   </div>
+                ))}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="description">
-                      Description & Achievements
-                    </Label>
-                    <textarea
-                      id="description"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-                      rows={4}
-                      placeholder={
-                        "• Led development of new feature\n• Improved performance by 30%\n• Collaborated with cross-functional team"
-                      }
-                    />
+                {user.projects && (
+                  <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <p className="text-xs font-medium text-blue-700 mb-1">
+                      From Your Onboarding (Projects):
+                    </p>
+                    <p className="text-xs text-blue-600">{user.projects}</p>
+                    <p className="text-xs text-blue-700 mt-2">
+                      Consider adding this as a 'Project' entry above.
+                    </p>
                   </div>
+                )}
 
-                  {user.projects && (
-                    <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                      <p className="text-xs font-medium text-blue-700 mb-1">
-                        From Your Onboarding:
-                      </p>
-                      <p className="text-xs text-blue-600">{user.projects}</p>
-                    </div>
-                  )}
-
-                  <Button variant="outline" className="w-full">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Another Position
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleAddExperience}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Another Position
+                </Button>
               </AccordionContent>
             </AccordionItem>
 
             {/* Skills Section */}
             <AccordionItem
               value="skills"
-              className="bg-muted border rounded-xl px-4"
+              className="bg-white border rounded-xl px-4"
             >
               <AccordionTrigger className="hover:no-underline py-4">
                 <div className="flex items-center gap-3">
@@ -695,6 +943,7 @@ Career Goals: ${user.careerGoals || "Not specified"}
                       onChange={(e) => setNewSkill(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
+                          e.preventDefault();
                           handleAddSkill();
                         }
                       }}
@@ -708,7 +957,7 @@ Career Goals: ${user.careerGoals || "Not specified"}
                   </div>
                 </div>
 
-                {user.skills && user.skills.length > 0 && (
+                {user.skills && user.skills.length > 0 && hasPreFilled && (
                   <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
                     <p className="text-xs text-purple-700 flex items-center gap-2">
                       <Sparkles className="h-4 w-4" />
@@ -723,7 +972,7 @@ Career Goals: ${user.careerGoals || "Not specified"}
             {/* Certifications Section */}
             <AccordionItem
               value="certifications"
-              className="bg-muted border rounded-xl px-4"
+              className="bg-white border rounded-xl px-4"
             >
               <AccordionTrigger className="hover:no-underline py-4">
                 <div className="flex items-center gap-3">
@@ -749,11 +998,7 @@ Career Goals: ${user.careerGoals || "Not specified"}
                         >
                           {cert}
                           <button
-                            onClick={() =>
-                              setCertifications(
-                                certifications.filter((_, i) => i !== idx)
-                              )
-                            }
+                            onClick={() => handleRemoveCertification(cert)}
                             className="hover:text-green-600 ml-1"
                           >
                             <X className="h-3 w-3" />
@@ -773,25 +1018,14 @@ Career Goals: ${user.careerGoals || "Not specified"}
                       value={newCertification}
                       onChange={(e) => setNewCertification(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && newCertification.trim()) {
-                          setCertifications([
-                            ...certifications,
-                            newCertification.trim(),
-                          ]);
-                          setNewCertification("");
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddCertification();
                         }
                       }}
                     />
                     <Button
-                      onClick={() => {
-                        if (newCertification.trim()) {
-                          setCertifications([
-                            ...certifications,
-                            newCertification.trim(),
-                          ]);
-                          setNewCertification("");
-                        }
-                      }}
+                      onClick={handleAddCertification}
                       disabled={!newCertification.trim()}
                     >
                       <Plus className="h-4 w-4" />
@@ -957,8 +1191,8 @@ Career Goals: ${user.careerGoals || "Not specified"}
                 </div>
               )}
 
-              {/* Education Section */}
-              {education.university && (
+              {/* Education Section (Refactored for multiple) */}
+              {educations.length > 0 && educations[0].university && (
                 <div>
                   <h2
                     className={cn(
@@ -972,21 +1206,68 @@ Career Goals: ${user.careerGoals || "Not specified"}
                   >
                     Education
                   </h2>
-                  <div>
-                    <div className="flex justify-between items-baseline">
-                      <h3 className="font-semibold">
-                        {education.degree} in {education.major}
-                      </h3>
-                      <p className="text-xs text-muted-foreground font-medium">
-                        {education.graduationYear
-                          ? `Expected ${education.graduationYear}`
-                          : ""}
-                      </p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {education.university}
-                      {education.gpa && ` | GPA: ${education.gpa}`}
-                    </p>
+                  <div className="space-y-3">
+                    {educations.map((edu) => (
+                      <div key={edu.id}>
+                        <div className="flex justify-between items-baseline">
+                          <h3 className="font-semibold">
+                            {edu.degree || "Degree"} in {edu.major || "Major"}
+                          </h3>
+                          <p className="text-xs text-muted-foreground font-medium">
+                            {edu.graduationYear
+                              ? `Expected ${edu.graduationYear}`
+                              : ""}
+                          </p>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {edu.university || "University"}
+                          {edu.gpa && ` | GPA: ${edu.gpa}`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Work Experience Section (Refactored for multiple) */}
+              {experiences.length > 0 && (
+                <div>
+                  <h2
+                    className={cn(
+                      "text-sm font-bold uppercase tracking-widest mb-2",
+                      resume.selectedTemplate === 0 && "text-primary",
+                      resume.selectedTemplate === 1 &&
+                        "text-foreground border-b border-primary pb-1",
+                      resume.selectedTemplate === 2 &&
+                        "text-primary border-b border-primary/30 pb-1"
+                    )}
+                  >
+                    Work Experience
+                  </h2>
+                  <div className="space-y-4">
+                    {experiences.map((exp) => (
+                      <div key={exp.id}>
+                        <div className="flex justify-between items-baseline">
+                          <h3 className="font-semibold">
+                            {exp.jobTitle || "Position Title"}
+                          </h3>
+                          <p className="text-xs text-muted-foreground font-medium">
+                            {exp.startDate} - {exp.endDate || "Present"}
+                          </p>
+                        </div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          {exp.company || "Company Name"}
+                        </p>
+                        <ul className="text-sm list-disc pl-5 mt-1 text-muted-foreground space-y-1">
+                          {exp.description
+                            .split("\n")
+                            .filter((line) => line.trim().length > 0)
+                            .map((line, i) => (
+                              <li key={i}>{line.replace(/•\s*/, "")}</li>
+                            ))}
+                        </ul>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -1032,8 +1313,8 @@ Career Goals: ${user.careerGoals || "Not specified"}
                 </div>
               )}
 
-              {/* Projects/Experience Section */}
-              {user.projects && (
+              {/* Projects Section (from user onboarding) */}
+              {user.projects && experiences.length === 0 && (
                 <div>
                   <h2
                     className={cn(
@@ -1043,10 +1324,9 @@ Career Goals: ${user.careerGoals || "Not specified"}
                         : "text-primary"
                     )}
                   >
-                    Projects & Experience
+                    Projects
                   </h2>
                   <div>
-                    <h3 className="font-semibold">Key Projects</h3>
                     <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                       {user.projects}
                     </p>
@@ -1079,17 +1359,21 @@ Career Goals: ${user.careerGoals || "Not specified"}
               )}
 
               {/* Placeholder if no content */}
-              {!summary && !education.university && skills.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <p className="text-sm">
-                    Fill in the sections on the left to see your resume preview
-                  </p>
-                </div>
-              )}
+              {!summary &&
+                (educations.length === 0 || !educations[0].university) &&
+                skills.length === 0 &&
+                experiences.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p className="text-sm">
+                      Fill in the sections on the left to see your resume
+                      preview
+                    </p>
+                  </div>
+                )}
             </div>
           </div>
         </Card>
       </div>
     </main>
   );
-}
+};
